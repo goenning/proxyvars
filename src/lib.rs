@@ -28,4 +28,28 @@ mod tests {
         let https_proxy = crate::https();
         assert!(https_proxy.is_none());
     }
+
+    #[test]
+    fn defined_uppercase_vars() {
+        std::env::set_var("HTTP_PROXY", "http://proxy.example.com:8080");
+        std::env::set_var("HTTPS_PROXY", "https://proxy.example.com:4433");
+
+        let http_proxy = crate::http();
+        assert_eq!(http_proxy, Some("http://proxy.example.com:8080".into()));
+
+        let https_proxy = crate::https();
+        assert_eq!(https_proxy, Some("https://proxy.example.com:4433".into()));
+    }
+
+    #[test]
+    fn defined_lowercase_vars() {
+        std::env::set_var("http_proxy", "http://proxy.example.com:8080");
+        std::env::set_var("https_proxy", "https://proxy.example.com:4433");
+
+        let http_proxy = crate::http();
+        assert_eq!(http_proxy, Some("http://proxy.example.com:8080".into()));
+
+        let https_proxy = crate::https();
+        assert_eq!(https_proxy, Some("https://proxy.example.com:4433".into()));
+    }
 }
