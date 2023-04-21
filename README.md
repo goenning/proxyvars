@@ -28,4 +28,5 @@ if let Some(no_proxy) = proxyvars::no_proxy() {
 
 ### Notes
 
-The implementation of the `NO_PROXY` matcher is heavily inspired by Go's implementation located at [http/httpproxy/proxy.go](https://github.com/golang/net/blob/master/http/httpproxy/proxy.go).
+1. The implementation of the `NO_PROXY` matcher is heavily inspired by Go's implementation located at [http/httpproxy/proxy.go](https://github.com/golang/net/blob/master/http/httpproxy/proxy.go).
+2. It's outside the scope of this crate to actually perform the proxying.
