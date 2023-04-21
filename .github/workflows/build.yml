@@ -17,15 +17,11 @@ jobs:
         with:
           toolchain: stable
       - name: Run Tests
-        uses: actions-rs/cargo@v1
-        with:
-          command: test
-          args: --test-threads 1
+        run: cargo test -- --test-threads 1
       - name: Clippy Check
         uses: actions-rs/clippy-check@v1
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
-          args: --all-features
       - name: Audit Check
         uses: actions-rs/audit-check@v1
         with:
