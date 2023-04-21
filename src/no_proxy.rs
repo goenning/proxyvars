@@ -15,7 +15,8 @@ pub struct NoProxy {
 }
 
 impl NoProxy {
-    /// Verify if a target URL should be proxied or not, based on the NoProxy matcher rules
+    /// Verify if a target URL should be proxied or not based on the NoProxy matcher rules
+    /// Loopback addresses are excluded from proxying
     ///
     /// ```
     /// use proxyvars::NoProxy;
@@ -29,6 +30,13 @@ impl NoProxy {
             Some(parts) => parts,
             None => return false,
         };
+
+        // Do not use proxy for loopback addresses
+        if let Some(target_ip) = target_ip {
+            if target_ip.is_loopback() {
+                return true;
+            }
+        }
 
         for matcher in self.matchers.iter() {
             match matcher {
@@ -230,6 +238,14 @@ mod tests {
             np.matchers[3],
             NoProxyMatcher::Host(".example.com".into(), 443, true)
         );
+    }
+
+    #[test]
+    fn match_loopback() {
+        let np = NoProxy::from("");
+
+        assert_eq!(np.matches("http://127.0.0.1"), true);
+        assert_eq!(np.matches("http://[::1]"), true);
     }
 
     #[test]
