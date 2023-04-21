@@ -36,6 +36,10 @@ impl NoProxy {
                     return *target == *host;
                    
                 }
+                NoProxyMatcher::Wildcard => {
+                    return true;
+                   
+                }
             }
         }
 
@@ -72,19 +76,24 @@ pub enum NoProxyMatcher {
     Address(IpAddr, u16),
     Network(IpNet),
     Host(String, u16),
+    Wildcard
 }
 
 impl NoProxyMatcher {
     fn from(value: &str) -> Self {
-        let trimmed = value.trim();
-        match trimmed.parse::<IpNet>() {
+        let v = value.trim();
+        match v.parse::<IpNet>() {
             Ok(ip) => NoProxyMatcher::Network(ip),
             // Try parse Ip:Port
-            Err(_) => match parse_ip_port(trimmed) {
+            Err(_) => match parse_ip_port(v) {
                 Some((ip, port)) => NoProxyMatcher::Address(ip, port),
                 // Fallback to Host[:Port]
                 None => {
-                    let mut parts = trimmed.split(':');
+                    if v == "*" {
+                        return NoProxyMatcher::Wildcard;
+                    }
+
+                    let mut parts = v.split(':');
                     let host = parts.next().unwrap_or_default();
                     let port: u16 = parts.next().unwrap_or_default().parse().unwrap_or_default();
                     NoProxyMatcher::Host(host.into(), port)
@@ -168,13 +177,25 @@ mod tests {
         assert_eq!(np.matches("http://20.20.0.0".into()), true);
         assert_eq!(np.matches("http://20.20.0.1".into()), false);
 
-        assert_eq!(np.matches("http://10.0.0.0".into()), true);
-        assert_eq!(np.matches("http://10.0.0.255".into()), true);
-        assert_eq!(np.matches("http://10.0.1.0".into()), false);
-        assert_eq!(np.matches("http://10.0.1.255".into()), false);
+        assert_eq!(np.matches("http://10.0.0.0:8080".into()), true);
+        assert_eq!(np.matches("https://10.0.0.255:443".into()), true);
+        assert_eq!(np.matches("https://10.0.1.0:443".into()), false);
+        assert_eq!(np.matches("https//10.0.1.255".into()), false);
 
         assert_eq!(np.matches("http://64.64.0.0".into()), true);
         assert_eq!(np.matches("http://64.64.63.255".into()), true);
         assert_eq!(np.matches("http://64.65.0.0".into()), false);
+    }
+
+    #[test]
+    fn match_wildcard() {
+        let np = NoProxy::from("*");
+
+        assert_eq!(np.matches("http://20.20.0.0".into()), true);
+        assert_eq!(np.matches("http://10.0.0.0".into()), true);
+        assert_eq!(np.matches("http://10.0.0.255".into()), true);
+        assert_eq!(np.matches("http://64.64.0.0".into()), true);
+        assert_eq!(np.matches("http://example.com".into()), true);
+        assert_eq!(np.matches("http://blog.example.com".into()), true);
     }
 }
