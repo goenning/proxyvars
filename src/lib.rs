@@ -1,6 +1,6 @@
 mod no_proxy;
 
-use no_proxy::NoProxy;
+pub use no_proxy::NoProxy;
 
 /// Fetches the environment variable `HTTP_PROXY` or 'http_proxy'.
 pub fn http() -> Option<String> {

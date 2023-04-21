@@ -5,9 +5,11 @@ use std::net::{IpAddr, SocketAddr};
 /// A NoProxy matcher
 /// 
 /// ```
+/// use envproxy::NoProxy;
+/// 
 /// let np = NoProxy::from("10.0.0.0");
-/// assert_eq!(np.matches("http://10.0.0.0".into()), true);
-/// assert_eq!(np.matches("http://11.0.0.0".into()), false);
+/// assert_eq!(np.matches("http://10.0.0.0"), true);
+/// assert_eq!(np.matches("http://11.0.0.0"), false);
 /// ```
 pub struct NoProxy {
     matchers: Vec<NoProxyMatcher>,
@@ -17,11 +19,13 @@ impl NoProxy {
     /// Verify if a target URL should be proxied or not, based on the NoProxy matcher rules
     /// 
     /// ```
+    /// use envproxy::NoProxy;
+    /// 
     /// let np = NoProxy::from("10.0.0.0");
-    /// assert_eq!(np.matches("http://10.0.0.0".into()), true);
-    /// assert_eq!(np.matches("http://11.0.0.0".into()), false);
+    /// assert_eq!(np.matches("http://10.0.0.0"), true);
+    /// assert_eq!(np.matches("http://11.0.0.0"), false);
     /// ```
-    pub fn matches(&self, target: String) -> bool {
+    pub fn matches(&self, target: &str) -> bool {
         let target_uri = match target.parse::<http::Uri>() {
             Ok(uri) => uri,
             Err(_) => return false,
@@ -150,7 +154,8 @@ impl NoProxyMatcher {
 
 #[cfg(test)]
 mod tests {
-    use crate::no_proxy::{NoProxy, NoProxyMatcher};
+    use crate::NoProxy;
+    use crate::no_proxy::NoProxyMatcher;
 
     #[test]
     fn convert_empty() {
@@ -213,104 +218,104 @@ mod tests {
     fn match_ip() {
         let np = NoProxy::from("10.0.0.0");
 
-        assert_eq!(np.matches("http://10.0.0.0".into()), true);
-        assert_eq!(np.matches("http://10.0.0.0:8080".into()), true);
-        assert_eq!(np.matches("https://10.0.0.0:443".into()), true);
+        assert_eq!(np.matches("http://10.0.0.0"), true);
+        assert_eq!(np.matches("http://10.0.0.0:8080"), true);
+        assert_eq!(np.matches("https://10.0.0.0:443"), true);
     }
 
     #[test]
     fn match_ip_with_port() {
         let np = NoProxy::from("10.0.0.0:443");
 
-        assert_eq!(np.matches("http://10.0.0.0".into()), false);
-        assert_eq!(np.matches("http://10.0.0.0:8080".into()), false);
-        assert_eq!(np.matches("https://10.0.0.0".into()), true);
-        assert_eq!(np.matches("https://10.0.0.0:443".into()), true);
+        assert_eq!(np.matches("http://10.0.0.0"), false);
+        assert_eq!(np.matches("http://10.0.0.0:8080"), false);
+        assert_eq!(np.matches("https://10.0.0.0"), true);
+        assert_eq!(np.matches("https://10.0.0.0:443"), true);
     }
 
     #[test]
     fn match_multiple_ips() {
         let np = NoProxy::from("10.0.0.0,64.64.32.32");
 
-        assert_eq!(np.matches("http://64.64.32.32".into()), true);
-        assert_eq!(np.matches("http://64.64.32.32:8080".into()), true);
-        assert_eq!(np.matches("https://10.0.0.0:443".into()), true);
+        assert_eq!(np.matches("http://64.64.32.32"), true);
+        assert_eq!(np.matches("http://64.64.32.32:8080"), true);
+        assert_eq!(np.matches("https://10.0.0.0:443"), true);
     }
 
     #[test]
     fn match_multiple_ip_with_port() {
         let np = NoProxy::from("10.0.0.0:8080,64.64.32.32:8080");
 
-        assert_eq!(np.matches("http://64.64.32.32".into()), false);
-        assert_eq!(np.matches("http://64.64.32.32:8080".into()), true);
-        assert_eq!(np.matches("https://10.0.0.0:443".into()), false);
-        assert_eq!(np.matches("https://10.0.0.0:8080".into()), true);
+        assert_eq!(np.matches("http://64.64.32.32"), false);
+        assert_eq!(np.matches("http://64.64.32.32:8080"), true);
+        assert_eq!(np.matches("https://10.0.0.0:443"), false);
+        assert_eq!(np.matches("https://10.0.0.0:8080"), true);
     }
 
     #[test]
     fn match_cidr() {
         let np = NoProxy::from("10.0.0.0/24,64.64.0.0/18,20.20.0.0/32");
 
-        assert_eq!(np.matches("http://20.20.0.0".into()), true);
-        assert_eq!(np.matches("http://20.20.0.1".into()), false);
+        assert_eq!(np.matches("http://20.20.0.0"), true);
+        assert_eq!(np.matches("http://20.20.0.1"), false);
 
-        assert_eq!(np.matches("http://10.0.0.0:8080".into()), true);
-        assert_eq!(np.matches("https://10.0.0.255:443".into()), true);
-        assert_eq!(np.matches("https://10.0.1.0:443".into()), false);
-        assert_eq!(np.matches("https//10.0.1.255".into()), false);
+        assert_eq!(np.matches("http://10.0.0.0:8080"), true);
+        assert_eq!(np.matches("https://10.0.0.255:443"), true);
+        assert_eq!(np.matches("https://10.0.1.0:443"), false);
+        assert_eq!(np.matches("https//10.0.1.255"), false);
 
-        assert_eq!(np.matches("http://64.64.0.0".into()), true);
-        assert_eq!(np.matches("http://64.64.63.255".into()), true);
-        assert_eq!(np.matches("http://64.65.0.0".into()), false);
+        assert_eq!(np.matches("http://64.64.0.0"), true);
+        assert_eq!(np.matches("http://64.64.63.255"), true);
+        assert_eq!(np.matches("http://64.65.0.0"), false);
     }
 
     #[test]
     fn match_wildcard() {
         let np = NoProxy::from("*");
 
-        assert_eq!(np.matches("http://20.20.0.0".into()), true);
-        assert_eq!(np.matches("http://10.0.0.0".into()), true);
-        assert_eq!(np.matches("http://10.0.0.255".into()), true);
-        assert_eq!(np.matches("http://64.64.0.0".into()), true);
-        assert_eq!(np.matches("http://example.com".into()), true);
-        assert_eq!(np.matches("http://blog.example.com".into()), true);
+        assert_eq!(np.matches("http://20.20.0.0"), true);
+        assert_eq!(np.matches("http://10.0.0.0"), true);
+        assert_eq!(np.matches("http://10.0.0.255"), true);
+        assert_eq!(np.matches("http://64.64.0.0"), true);
+        assert_eq!(np.matches("http://example.com"), true);
+        assert_eq!(np.matches("http://blog.example.com"), true);
     }
 
     #[test]
     fn match_host() {
         let np = NoProxy::from("example.com,company.org,*.domain.io");
 
-        assert_eq!(np.matches("http://example.com".into()), true);
-        assert_eq!(np.matches("http://blog.example.com".into()), true);
+        assert_eq!(np.matches("http://example.com"), true);
+        assert_eq!(np.matches("http://blog.example.com"), true);
 
-        assert_eq!(np.matches("http://invalid.org".into()), false);
-        assert_eq!(np.matches("http://blog.invalid.org".into()), false);
+        assert_eq!(np.matches("http://invalid.org"), false);
+        assert_eq!(np.matches("http://blog.invalid.org"), false);
 
-        assert_eq!(np.matches("http://company.org:443".into()), true);
-        assert_eq!(np.matches("https://company.org:443".into()), true);
-        assert_eq!(np.matches("https://company.org".into()), true);
+        assert_eq!(np.matches("http://company.org:443"), true);
+        assert_eq!(np.matches("https://company.org:443"), true);
+        assert_eq!(np.matches("https://company.org"), true);
 
-        assert_eq!(np.matches("http://domain.io".into()), false);
-        assert_eq!(np.matches("http://blog.domain.io".into()), true);
-        assert_eq!(np.matches("http://docs.domain.io".into()), true);
+        assert_eq!(np.matches("http://domain.io"), false);
+        assert_eq!(np.matches("http://blog.domain.io"), true);
+        assert_eq!(np.matches("http://docs.domain.io"), true);
     }
 
     #[test]
     fn match_host_with_ports() {
         let np = NoProxy::from("example.com:8080,company.org:443,*.domain.io:80");
 
-        assert_eq!(np.matches("http://example.com".into()), false);
-        assert_eq!(np.matches("http://example.com:8080".into()), true);
+        assert_eq!(np.matches("http://example.com"), false);
+        assert_eq!(np.matches("http://example.com:8080"), true);
 
-        assert_eq!(np.matches("http://company.org".into()), false);
-        assert_eq!(np.matches("http://company.org:443".into()), true);
-        assert_eq!(np.matches("https://company.org".into()), true);
-        assert_eq!(np.matches("https://company.org:443".into()), true);
+        assert_eq!(np.matches("http://company.org"), false);
+        assert_eq!(np.matches("http://company.org:443"), true);
+        assert_eq!(np.matches("https://company.org"), true);
+        assert_eq!(np.matches("https://company.org:443"), true);
 
-        assert_eq!(np.matches("http://domain.io".into()), false);
-        assert_eq!(np.matches("http://domain.io:80".into()), false);
-        assert_eq!(np.matches("http://blog.domain.io".into()), true);
-        assert_eq!(np.matches("http://docs.domain.io:80".into()), true);
-        assert_eq!(np.matches("http://docs.domain.io:8080".into()), false);
+        assert_eq!(np.matches("http://domain.io"), false);
+        assert_eq!(np.matches("http://domain.io:80"), false);
+        assert_eq!(np.matches("http://blog.domain.io"), true);
+        assert_eq!(np.matches("http://docs.domain.io:80"), true);
+        assert_eq!(np.matches("http://docs.domain.io:8080"), false);
     }
 }
