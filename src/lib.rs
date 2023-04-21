@@ -16,7 +16,7 @@ pub fn no_proxy() -> Option<NoProxy> {
 
 fn invariant_var(name: &str) -> Option<String> {
     let nonempty = |o: Option<String>| o.filter(|s| !s.is_empty());
-    
+
     nonempty(std::env::var(name).ok()).or_else(|| nonempty(std::env::var(name.to_lowercase()).ok()))
 }
 
