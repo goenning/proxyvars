@@ -13,7 +13,13 @@ impl NoProxy {
         };
 
         let target_host = target_uri.host().unwrap_or_default();
-        let target_port = target_uri.port_u16().unwrap_or_default();
+        let target_port = target_uri.port_u16().unwrap_or_else(|| {
+            match target_uri.scheme_str() {
+                Some("http") => 80,
+                Some("https") => 443,
+                _ => 0
+            }
+        });
         let target_ip = target_host.parse::<IpAddr>().ok();
 
         for matcher in self.matchers.iter() {
@@ -32,9 +38,12 @@ impl NoProxy {
                         } 
                     }
                 }
-                NoProxyMatcher::Host(host, port) => {
-                    return *target == *host;
-                   
+                NoProxyMatcher::Host(host, port, exact) => {
+                    if (*exact && &host[1..] == target_host) || target_host.ends_with(host) {
+                        if *port == 0 || *port == target_port {
+                            return true;
+                        }
+                    }
                 }
                 NoProxyMatcher::Wildcard => {
                     return true;
@@ -73,9 +82,13 @@ fn parse_ip_port(value: &str) -> Option<(IpAddr, u16)> {
 
 #[derive(Debug, Clone, Eq, PartialEq, Ord, PartialOrd, Hash)]
 pub enum NoProxyMatcher {
+    // Matches IP address with an optional port
     Address(IpAddr, u16),
+    // Matches all IP addresses based on its CIDR, port is ignored
     Network(IpNet),
-    Host(String, u16),
+    // Matches the host name with an optional port
+    Host(String, u16, bool),
+    // Matches all hosts and ports
     Wildcard
 }
 
@@ -94,9 +107,21 @@ impl NoProxyMatcher {
                     }
 
                     let mut parts = v.split(':');
-                    let host = parts.next().unwrap_or_default();
+                    let mut host = parts.next().unwrap_or_default();
                     let port: u16 = parts.next().unwrap_or_default().parse().unwrap_or_default();
-                    NoProxyMatcher::Host(host.into(), port)
+
+                    // *.example should behave like .example
+                    if host.starts_with("*.") {
+                        host = &host[1..]
+                    }
+
+                    // If host starts with a dot, it should only match subdomains
+                    if host.starts_with(".") {
+                        return NoProxyMatcher::Host(host.into(), port, false)
+                    }
+
+                    // Otherwise it should match exact host and subdomains
+                    return NoProxyMatcher::Host(format!(".{}", host), port, true)
                 }
             },
         }
@@ -113,14 +138,22 @@ mod tests {
 
         assert_eq!(np.matchers.len(), 0);
     }
+    #[test]
+    fn convert_skip_empty_entries() {
+        let np = NoProxy::from("10.0.0.0,,,,example.com,");
+
+        assert_eq!(np.matchers.len(), 2);
+    }
 
     #[test]
-    fn convert_from_string_without_ports() {
-        let np = NoProxy::from("10.0.0.0,192.168.1.0/24,example.com");
+    fn convert_from_string() {
+        let np = NoProxy::from("10.0.0.0,192.168.1.0/24,example.com,*.test.org,.foo.org:443");
 
         assert_eq!(np.matchers[0], NoProxyMatcher::Address("10.0.0.0".parse().unwrap(), 0));
         assert_eq!(np.matchers[1], NoProxyMatcher::Network("192.168.1.0/24".parse().unwrap()));
-        assert_eq!(np.matchers[2], NoProxyMatcher::Host("example.com".into(), 0));
+        assert_eq!(np.matchers[2], NoProxyMatcher::Host(".example.com".into(), 0, true));
+        assert_eq!(np.matchers[3], NoProxyMatcher::Host(".test.org".into(), 0, false));
+        assert_eq!(np.matchers[4], NoProxyMatcher::Host(".foo.org".into(), 443, false));
     }
 
     #[test]
@@ -129,11 +162,11 @@ mod tests {
 
         assert_eq!(np.matchers[0], NoProxyMatcher::Address("10.0.0.0".parse().unwrap(), 8080));
         assert_eq!(np.matchers[1], NoProxyMatcher::Network("192.168.1.0/24".parse().unwrap()));
-        assert_eq!(np.matchers[2], NoProxyMatcher::Host("example.com".into(), 443));
+        assert_eq!(np.matchers[2], NoProxyMatcher::Host(".example.com".into(), 443, true));
     }
 
     #[test]
-    fn match_ip_without_port() {
+    fn match_ip() {
         let np = NoProxy::from("10.0.0.0");
 
         assert_eq!(np.matches("http://10.0.0.0".into()), true);
@@ -147,12 +180,12 @@ mod tests {
 
         assert_eq!(np.matches("http://10.0.0.0".into()), false);
         assert_eq!(np.matches("http://10.0.0.0:8080".into()), false);
-        assert_eq!(np.matches("https://10.0.0.0".into()), false);
+        assert_eq!(np.matches("https://10.0.0.0".into()), true);
         assert_eq!(np.matches("https://10.0.0.0:443".into()), true);
     }
 
     #[test]
-    fn match_multiple_ip_without_port() {
+    fn match_multiple_ips() {
         let np = NoProxy::from("10.0.0.0,64.64.32.32");
 
         assert_eq!(np.matches("http://64.64.32.32".into()), true);
@@ -197,5 +230,44 @@ mod tests {
         assert_eq!(np.matches("http://64.64.0.0".into()), true);
         assert_eq!(np.matches("http://example.com".into()), true);
         assert_eq!(np.matches("http://blog.example.com".into()), true);
+    }
+
+    #[test]
+    fn match_host() {
+        let np = NoProxy::from("example.com,company.org,*.domain.io");
+
+        assert_eq!(np.matches("http://example.com".into()), true);
+        assert_eq!(np.matches("http://blog.example.com".into()), true);
+        
+        assert_eq!(np.matches("http://invalid.org".into()), false);
+        assert_eq!(np.matches("http://blog.invalid.org".into()), false);
+        
+        assert_eq!(np.matches("http://company.org:443".into()), true);
+        assert_eq!(np.matches("https://company.org:443".into()), true);
+        assert_eq!(np.matches("https://company.org".into()), true);
+        
+        assert_eq!(np.matches("http://domain.io".into()), false);
+        assert_eq!(np.matches("http://blog.domain.io".into()), true);
+        assert_eq!(np.matches("http://docs.domain.io".into()), true);
+    }
+
+    #[test]
+    fn match_host_with_ports() {
+        let np = NoProxy::from("example.com:8080,company.org:443,*.domain.io:80");
+
+        assert_eq!(np.matches("http://example.com".into()), false);
+        assert_eq!(np.matches("http://example.com:8080".into()), true);
+
+        assert_eq!(np.matches("http://company.org".into()), false);
+        assert_eq!(np.matches("http://company.org:443".into()), true);
+        assert_eq!(np.matches("https://company.org".into()), true);
+        assert_eq!(np.matches("https://company.org:443".into()), true);
+
+        assert_eq!(np.matches("http://domain.io".into()), false);
+        assert_eq!(np.matches("http://domain.io:80".into()), false);
+        assert_eq!(np.matches("http://blog.domain.io".into()), true);
+        assert_eq!(np.matches("http://docs.domain.io:80".into()), true);
+        assert_eq!(np.matches("http://docs.domain.io:8080".into()), false);
+
     }
 }
