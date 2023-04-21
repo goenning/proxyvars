@@ -2,14 +2,27 @@ mod no_proxy;
 
 use no_proxy::NoProxy;
 
+/// Fetches the environment variable `HTTP_PROXY` or 'http_proxy'.
 pub fn http() -> Option<String> {
     invariant_var("HTTP_PROXY")
 }
 
+/// Fetches the environment variable `HTTPS_PROXY` or 'https_proxy'.
 pub fn https() -> Option<String> {
     invariant_var("HTTPS_PROXY")
 }
 
+/// Fetches and parse the environment variable `NO_PROXY` or 'no_proxy'.
+/// 
+/// ```
+/// if let Some(no_proxy) = envproxy::no_proxy() {
+///     // This environment has NO_PROXY defined
+///     if no_proxy.matches("https://company.com") {
+///         // We should not use a proxy for this URL
+///     }
+/// }
+/// 
+/// ```
 pub fn no_proxy() -> Option<NoProxy> {
     invariant_var("NO_PROXY").map(NoProxy::from)
 }

@@ -1,7 +1,13 @@
 [package]
 name = "envproxy"
 version = "0.1.0"
+authors = ["Guilherme Oenning <me@goenning.net>"]
+description = "Parser for the HTTP_PROXY, HTTPS_PROXY and NO_PROXY environment variables, with a Go-like matcher for the NO_PROXY variable."
+license = "MIT"
 edition = "2021"
+repository = "https://github.com/goenning/envproxy"
+keywords = ["no_proxy", "http_proxy", "https_proxy"]
+documentation = "https://docs.rs/envproxy"
 
 [dependencies]
 ipnet = "2.7"

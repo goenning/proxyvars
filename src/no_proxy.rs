@@ -1,11 +1,26 @@
 use ipnet::IpNet;
 use std::net::{IpAddr, SocketAddr};
 
+
+/// A NoProxy matcher
+/// 
+/// ```
+/// let np = NoProxy::from("10.0.0.0");
+/// assert_eq!(np.matches("http://10.0.0.0".into()), true);
+/// assert_eq!(np.matches("http://11.0.0.0".into()), false);
+/// ```
 pub struct NoProxy {
-    pub(crate) matchers: Vec<NoProxyMatcher>,
+    matchers: Vec<NoProxyMatcher>,
 }
 
 impl NoProxy {
+    /// Verify if a target URL should be proxied or not, based on the NoProxy matcher rules
+    /// 
+    /// ```
+    /// let np = NoProxy::from("10.0.0.0");
+    /// assert_eq!(np.matches("http://10.0.0.0".into()), true);
+    /// assert_eq!(np.matches("http://11.0.0.0".into()), false);
+    /// ```
     pub fn matches(&self, target: String) -> bool {
         let target_uri = match target.parse::<http::Uri>() {
             Ok(uri) => uri,
@@ -86,7 +101,7 @@ fn parse_ip_port(value: &str) -> Option<(IpAddr, u16)> {
 }
 
 #[derive(Debug, Clone, Eq, PartialEq, Ord, PartialOrd, Hash)]
-pub enum NoProxyMatcher {
+enum NoProxyMatcher {
     // Matches IP address with an optional port
     Address(IpAddr, u16),
     // Matches all IP addresses based on its CIDR, port is ignored
