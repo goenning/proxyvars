@@ -1,6 +1,6 @@
 ## proxyvars
 
-proxyvars is a parser for the `HTTP_PROXY`, `HTTPS_PROXY` and `NO_PROXY` environment variables, with `NO_PROXY` matcher based on Go's implementation.
+proxyvars is a parser for the `HTTP_PROXY`, `HTTPS_PROXY` and `NO_PROXY` environment variables, with `NO_PROXY` matcher based on [Go's implementation](https://github.com/golang/net/blob/master/http/httpproxy/proxy.go).
 
 This crate can:
 

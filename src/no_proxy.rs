@@ -1,3 +1,4 @@
+use http::Uri;
 use ipnet::IpNet;
 use std::net::IpAddr;
 
@@ -26,10 +27,24 @@ impl NoProxy {
     /// assert_eq!(np.matches("http://11.0.0.0"), false);
     /// ```
     pub fn matches(&self, target: &str) -> bool {
-        let (target_host, target_port, target_ip) = match split_host_port(target) {
-            Some(parts) => parts,
-            None => return false,
-        };
+        match target.parse::<Uri>() {
+            Ok(uri) => self.matches_uri(&uri),
+            Err(_) => false,
+        }
+    }
+
+    /// Verify if a target URL should be proxied or not based on the NoProxy matcher rules
+    /// Loopback addresses are excluded from proxying
+    ///
+    /// ```
+    /// use proxyvars::NoProxy;
+    ///
+    /// let np = NoProxy::from("10.0.0.0");
+    /// assert_eq!(np.matches_uri(&"http://10.0.0.0".parse().unwrap()), true);
+    /// assert_eq!(np.matches_uri(&"http://11.0.0.0".parse().unwrap()), false);
+    /// ```
+    pub fn matches_uri(&self, target: &Uri) -> bool {
+        let (target_host, target_port, target_ip) = split_host_port(target);
 
         // Do not use proxy for loopback addresses
         if let Some(target_ip) = target_ip {
@@ -93,19 +108,15 @@ impl From<String> for NoProxy {
     }
 }
 
-fn split_host_port(value: &str) -> Option<(String, u16, Option<IpAddr>)> {
-    match value.parse::<http::Uri>() {
-        Ok(uri) => {
-            let target_host = uri.host().unwrap_or_default();
-            let target_port = uri.port_u16().unwrap_or_else(|| match uri.scheme_str() {
-                Some("http") => 80,
-                Some("https") => 443,
-                _ => 0,
-            });
-            Some((target_host.to_owned(), target_port, parse_ip(target_host)))
-        }
-        Err(_) => None,
-    }
+fn split_host_port(uri: &http::Uri) -> (String, u16, Option<IpAddr>) {
+    let target_host = uri.host().unwrap_or_default();
+    let target_port = uri.port_u16().unwrap_or_else(|| match uri.scheme_str() {
+        Some("http") => 80,
+        Some("https") => 443,
+        _ => 0,
+    });
+
+    (target_host.to_owned(), target_port, parse_ip(target_host))
 }
 
 fn parse_ip(value: &str) -> Option<IpAddr> {
@@ -135,33 +146,36 @@ enum NoProxyMatcher {
 impl NoProxyMatcher {
     fn from(value: &str) -> Self {
         let v = value.trim();
+        // First check if it's a network
         match v.parse::<IpNet>() {
             Ok(ip) => NoProxyMatcher::Network(ip),
-            // It's not a network, so try
-            Err(_) => match split_host_port(v) {
-                Some((mut host, port, ip)) => match ip {
-                    Some(ip) => NoProxyMatcher::Address(ip, port),
-                    None => {
-                        if v == "*" {
-                            return NoProxyMatcher::Wildcard;
-                        }
+            // Otherwise it's an IP or a domain
+            Err(_) => match v.parse::<Uri>() {
+                Ok(uri) => {
+                    let (mut host, port, ip) = split_host_port(&uri);
+                    match ip {
+                        Some(ip) => NoProxyMatcher::Address(ip, port),
+                        None => {
+                            if v == "*" {
+                                return NoProxyMatcher::Wildcard;
+                            }
 
-                        // *.example should behave like .example
-                        if host.starts_with("*.") {
-                            host = host[1..].to_string()
-                        }
+                            // *.example should behave like .example
+                            if host.starts_with("*.") {
+                                host = host[1..].to_string()
+                            }
 
-                        // If host starts with a dot, it should only match subdomains
-                        if host.starts_with('.') {
-                            return NoProxyMatcher::Host(host, port, false);
-                        }
+                            // If host starts with a dot, it should only match subdomains
+                            if host.starts_with('.') {
+                                return NoProxyMatcher::Host(host, port, false);
+                            }
 
-                        // Otherwise it should match exact host and subdomains
-                        NoProxyMatcher::Host(format!(".{}", host), port, true)
+                            // Otherwise it should match exact host and subdomains
+                            NoProxyMatcher::Host(format!(".{}", host), port, true)
+                        }
                     }
-                },
-                // This should never really happen
-                None => NoProxyMatcher::Noop,
+                }
+                Err(_) => NoProxyMatcher::Noop,
             },
         }
     }

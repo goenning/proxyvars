@@ -1,6 +1,6 @@
 [package]
 name = "proxyvars"
-version = "0.1.2"
+version = "0.1.3"
 authors = ["Guilherme Oenning <me@goenning.net>"]
 description = "Parser for the HTTP_PROXY, HTTPS_PROXY and NO_PROXY environment variables, with a Go-like matcher for the NO_PROXY variable."
 license = "MIT"
