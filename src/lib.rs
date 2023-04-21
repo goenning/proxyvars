@@ -11,10 +11,7 @@ pub fn https() -> Option<String> {
 }
 
 pub fn no_proxy() -> Option<NoProxy> {
-    match invariant_var("NO_PROXY") {
-        Some(no_proxy) => Some(NoProxy::from(no_proxy)),
-        None => None,
-    }
+    invariant_var("NO_PROXY").map(NoProxy::from)
 }
 
 fn invariant_var(name: &str) -> Option<String> {

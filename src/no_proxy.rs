@@ -39,10 +39,11 @@ impl NoProxy {
                     }
                 }
                 NoProxyMatcher::Host(host, port, exact) => {
-                    if (*exact && &host[1..] == target_host) || target_host.ends_with(host) {
-                        if *port == 0 || *port == target_port {
-                            return true;
-                        }
+                    let host_matches = (*exact && &host[1..] == target_host) || target_host.ends_with(host);
+                    let port_matches = *port == 0 || *port == target_port;
+
+                    if host_matches && port_matches {
+                        return true;
                     }
                 }
                 NoProxyMatcher::Wildcard => {
@@ -52,14 +53,14 @@ impl NoProxy {
             }
         }
 
-        return false;
+        false
     }
 }
 
 impl From<&str> for NoProxy {
     fn from(value: &str) -> Self {
-        let matchers = value.split(',').filter(|s| !s.is_empty()).map(|str| NoProxyMatcher::from(str)).collect();
-        return NoProxy { matchers }
+        let matchers = value.split(',').filter(|s| !s.is_empty()).map(NoProxyMatcher::from).collect();
+        NoProxy { matchers }
     }
 }
 
@@ -116,12 +117,12 @@ impl NoProxyMatcher {
                     }
 
                     // If host starts with a dot, it should only match subdomains
-                    if host.starts_with(".") {
+                    if host.starts_with('.') {
                         return NoProxyMatcher::Host(host.into(), port, false)
                     }
 
                     // Otherwise it should match exact host and subdomains
-                    return NoProxyMatcher::Host(format!(".{}", host), port, true)
+                    NoProxyMatcher::Host(format!(".{}", host), port, true)
                 }
             },
         }
