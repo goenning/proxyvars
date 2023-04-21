@@ -1,3 +1,7 @@
+mod no_proxy;
+
+use no_proxy::NoProxy;
+
 pub fn http() -> Option<String> {
     invariant_var("HTTP_PROXY")
 }
@@ -6,12 +10,18 @@ pub fn https() -> Option<String> {
     invariant_var("HTTPS_PROXY")
 }
 
+pub fn no_proxy() -> Option<NoProxy> {
+    match invariant_var("NO_PROXY") {
+        Some(no_proxy) => Some(NoProxy::from(no_proxy)),
+        None => None,
+    }
+}
+
 fn invariant_var(name: &str) -> Option<String> {
     let nonempty = |o: Option<String>| o.filter(|s| !s.is_empty());
     
     nonempty(std::env::var(name).ok()).or_else(|| nonempty(std::env::var(name.to_lowercase()).ok()))
 }
-
 
 #[cfg(test)]
 mod tests {
