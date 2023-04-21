@@ -15,7 +15,7 @@ pub fn https() -> Option<String> {
 }
 
 /// Fetches and parse the environment variable `NO_PROXY` or 'no_proxy'.
-/// 
+///
 /// ```
 /// if let Some(no_proxy) = proxyvars::no_proxy() {
 ///     // This environment has NO_PROXY defined
@@ -23,7 +23,7 @@ pub fn https() -> Option<String> {
 ///         // We should not use a proxy for this URL
 ///     }
 /// }
-/// 
+///
 /// ```
 pub fn no_proxy() -> Option<NoProxy> {
     invariant_var("NO_PROXY").map(NoProxy::from)

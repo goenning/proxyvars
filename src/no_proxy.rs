@@ -1,12 +1,11 @@
 use ipnet::IpNet;
 use std::net::IpAddr;
 
-
 /// A NoProxy matcher
-/// 
+///
 /// ```
 /// use proxyvars::NoProxy;
-/// 
+///
 /// let np = NoProxy::from("10.0.0.0");
 /// assert_eq!(np.matches("http://10.0.0.0"), true);
 /// assert_eq!(np.matches("http://11.0.0.0"), false);
@@ -17,10 +16,10 @@ pub struct NoProxy {
 
 impl NoProxy {
     /// Verify if a target URL should be proxied or not, based on the NoProxy matcher rules
-    /// 
+    ///
     /// ```
     /// use proxyvars::NoProxy;
-    /// 
+    ///
     /// let np = NoProxy::from("10.0.0.0");
     /// assert_eq!(np.matches("http://10.0.0.0"), true);
     /// assert_eq!(np.matches("http://11.0.0.0"), false);
@@ -61,7 +60,7 @@ impl NoProxy {
                 }
                 NoProxyMatcher::Noop => {
                     // noop
-                },
+                }
             }
         }
 
@@ -90,15 +89,13 @@ fn split_host_port(value: &str) -> Option<(String, u16, Option<IpAddr>)> {
     match value.parse::<http::Uri>() {
         Ok(uri) => {
             let target_host = uri.host().unwrap_or_default();
-            let target_port = uri
-                .port_u16()
-                .unwrap_or_else(|| match uri.scheme_str() {
-                    Some("http") => 80,
-                    Some("https") => 443,
-                    _ => 0,
-                });
+            let target_port = uri.port_u16().unwrap_or_else(|| match uri.scheme_str() {
+                Some("http") => 80,
+                Some("https") => 443,
+                _ => 0,
+            });
             Some((target_host.to_owned(), target_port, parse_ip(target_host)))
-        },
+        }
         Err(_) => None,
     }
 }
@@ -124,7 +121,7 @@ enum NoProxyMatcher {
     // Matches all hosts and ports
     Wildcard,
     // Does not match anything
-    Noop
+    Noop,
 }
 
 impl NoProxyMatcher {
@@ -132,20 +129,19 @@ impl NoProxyMatcher {
         let v = value.trim();
         match v.parse::<IpNet>() {
             Ok(ip) => NoProxyMatcher::Network(ip),
-            // It's not a network, so try 
+            // It's not a network, so try
             Err(_) => match split_host_port(v) {
-                Some((mut host, port, ip)) =>  match ip {
+                Some((mut host, port, ip)) => match ip {
                     Some(ip) => NoProxyMatcher::Address(ip, port),
                     None => {
                         if v == "*" {
                             return NoProxyMatcher::Wildcard;
                         }
-                        
+
                         // *.example should behave like .example
                         if host.starts_with("*.") {
                             host = host[1..].to_string()
                         }
-
 
                         // If host starts with a dot, it should only match subdomains
                         if host.starts_with('.') {
@@ -155,9 +151,9 @@ impl NoProxyMatcher {
                         // Otherwise it should match exact host and subdomains
                         NoProxyMatcher::Host(format!(".{}", host), port, true)
                     }
-                }
+                },
                 // This should never really happen
-                None => NoProxyMatcher::Noop
+                None => NoProxyMatcher::Noop,
             },
         }
     }
@@ -165,8 +161,8 @@ impl NoProxyMatcher {
 
 #[cfg(test)]
 mod tests {
-    use crate::NoProxy;
     use crate::no_proxy::NoProxyMatcher;
+    use crate::NoProxy;
 
     #[test]
     fn convert_empty() {
@@ -225,7 +221,10 @@ mod tests {
         );
         assert_eq!(
             np.matchers[2],
-            NoProxyMatcher::Address("fe80:0000:0000:0000:8657:e6fe:8d5:5325".parse().unwrap(), 8080)
+            NoProxyMatcher::Address(
+                "fe80:0000:0000:0000:8657:e6fe:8d5:5325".parse().unwrap(),
+                8080
+            )
         );
         assert_eq!(
             np.matchers[3],
@@ -259,7 +258,10 @@ mod tests {
     fn match_ipv6() {
         let np = NoProxy::from("[2001:db8:85a3:8d3:1319:8a2e:370:7348]");
 
-        assert_eq!(np.matches("http://[2001:db8:85a3:8d3:1319:8a2e:370:7348]"), true);
+        assert_eq!(
+            np.matches("http://[2001:db8:85a3:8d3:1319:8a2e:370:7348]"),
+            true
+        );
     }
 
     #[test]
