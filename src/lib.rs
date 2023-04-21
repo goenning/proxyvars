@@ -3,11 +3,13 @@ mod no_proxy;
 pub use no_proxy::NoProxy;
 
 /// Fetches the environment variable `HTTP_PROXY` or 'http_proxy'.
+/// Empty strings are ignored and return `None`.
 pub fn http() -> Option<String> {
     invariant_var("HTTP_PROXY")
 }
 
 /// Fetches the environment variable `HTTPS_PROXY` or 'https_proxy'.
+/// Empty strings are ignored and return `None`.
 pub fn https() -> Option<String> {
     invariant_var("HTTPS_PROXY")
 }
