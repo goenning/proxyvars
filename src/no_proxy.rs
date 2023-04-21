@@ -5,7 +5,7 @@ use std::net::{IpAddr, SocketAddr};
 /// A NoProxy matcher
 /// 
 /// ```
-/// use envproxy::NoProxy;
+/// use proxyvars::NoProxy;
 /// 
 /// let np = NoProxy::from("10.0.0.0");
 /// assert_eq!(np.matches("http://10.0.0.0"), true);
@@ -19,7 +19,7 @@ impl NoProxy {
     /// Verify if a target URL should be proxied or not, based on the NoProxy matcher rules
     /// 
     /// ```
-    /// use envproxy::NoProxy;
+    /// use proxyvars::NoProxy;
     /// 
     /// let np = NoProxy::from("10.0.0.0");
     /// assert_eq!(np.matches("http://10.0.0.0"), true);

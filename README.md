@@ -1,6 +1,6 @@
-## envproxy
+## proxyvars
 
-envproxy is a parser for the `HTTP_PROXY`, `HTTPS_PROXY` and `NO_PROXY` environment variables, with `NO_PROXY` matcher based on Go's implementation.
+proxyvars is a parser for the `HTTP_PROXY`, `HTTPS_PROXY` and `NO_PROXY` environment variables, with `NO_PROXY` matcher based on Go's implementation.
 
 This crate can:
 
@@ -14,14 +14,14 @@ This crate can:
 ### Usage
 
 ```rust
-if let Some(no_proxy) = envproxy::no_proxy() {
+if let Some(no_proxy) = proxyvars::no_proxy() {
     // This environment has NO_PROXY defined
     if no_proxy.matches("https://company.com") {
         // We should not use a proxy for this URL
     } else {
         // We should use a proxy for this URL, which are available at:
-        let https_proxy = envproxy::https_proxy();
-        let http_proxy = envproxy::http_proxy();
+        let https_proxy = proxyvars::https_proxy();
+        let http_proxy = proxyvars::http_proxy();
     }
 }
 ```

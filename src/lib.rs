@@ -15,7 +15,7 @@ pub fn https() -> Option<String> {
 /// Fetches and parse the environment variable `NO_PROXY` or 'no_proxy'.
 /// 
 /// ```
-/// if let Some(no_proxy) = envproxy::no_proxy() {
+/// if let Some(no_proxy) = proxyvars::no_proxy() {
 ///     // This environment has NO_PROXY defined
 ///     if no_proxy.matches("https://company.com") {
 ///         // We should not use a proxy for this URL
