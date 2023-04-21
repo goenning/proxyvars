@@ -7,7 +7,7 @@ This crate can:
 - Read `HTTPS_PROXY` and `HTTP_PROXY` and its lowercase variants
 - Read, parse and evaluate the `NO_PROXY` environment variables against a given URL
     - Supports CIDR
-    - Supports IP address and optinal ports
+    - Supports IPv4/IPv6 address and optinal ports
     - Supports Hostnames and optinal ports
     - Supports Wildcard
 
